@@ -26,7 +26,6 @@ SENTRY_PROJECTS_QUERY = """
       projects {
         name
         description
-        email_prefix
         platform
         sensitive_fields
         safe_fields
@@ -151,7 +150,7 @@ class SentryState:
                 p = client.get_project(project)
                 pdata = {
                     "name": p["slug"],
-                    "email_prefix": p["subjectPrefix"],
+                    #"email_prefix": p["subjectPrefix"],
                     "platform": p["platform"],
                 }
 
@@ -315,47 +314,49 @@ class SentryReconciler:
 
                 # This will eventually become configurable, but for now delete
                 # all alerting rules from the project
-                try:
-                    rules = self.client.get_project_alert_rules(project_name)
-                except requests.HTTPError:
-                    # Project doesn't exist so must be a create operation
-                    # in dry-run mode.  Use rule created by default for
-                    # new projects
-                    rules = [
-                        {
-                            "environment": None,
-                            "actionMatch": "all",
-                            "frequency": 30,
-                            "name": "Send a notification for new issues",
-                            "conditions": [
-                                {
-                                    "id": "sentry.rules.conditions."
-                                    + "first_seen_event.FirstSeenEventCondition",
-                                    "name": "An issue is first seen",
-                                }
-                            ],
-                            "id": "1",
-                            "actions": [
-                                {
-                                    "id": "sentry.rules.actions."
-                                    + "notify_event.NotifyEventAction",
-                                    "name": "Send a notification "
-                                    + "(for all legacy integrations)",
-                                }
-                            ],
-                        }
-                    ]
-                for rule in rules:
-                    logging.info(
-                        [
-                            "delete_project_alert_rule",
-                            project_name,
-                            rule,
-                            self.client.host,
-                        ]
-                    )
-                    if not self.dry_run:
-                        self.client.delete_project_alert_rule(project_name, rule)
+                #rules = self.client.get_project_alert_rules(project_name)
+
+                # Glitchtip returns 200 if project does not exist
+#                if not rules:
+#                    # Project doesn't exist so must be a create operation
+#                    # in dry-run mode.  Use rule created by default for
+#                    # new projects
+#                    rules = [
+#                        {
+#                            "environment": None,
+#                            "actionMatch": "all",
+#                            "frequency": 30,
+#                            "name": "Send a notification for new issues",
+#                            "conditions": [
+#                                {
+#                                    "id": "sentry.rules.conditions."
+#                                    + "first_seen_event.FirstSeenEventCondition",
+#                                    "name": "An issue is first seen",
+#                                }
+#                            ],
+#                            "id": "1",
+#                            "actions": [
+#                                {
+#                                    "id": "sentry.rules.actions."
+#                                    + "notify_event.NotifyEventAction",
+#                                    "name": "Send a notification "
+#                                    + "(for all legacy integrations)",
+#                                }
+#                            ],
+#                        }
+#                    ]
+#
+#                for rule in rules:
+#                    logging.info(
+#                        [
+#                            "delete_project_alert_rule",
+#                            project_name,
+#                            rule,
+#                            self.client.host,
+#                        ]
+#                    )
+#                    if not self.dry_run:
+#                        self.client.delete_project_alert_rule(project_name, rule)
 
     def _project_fields_need_updating_(self, project, options):
         fields_to_update = []

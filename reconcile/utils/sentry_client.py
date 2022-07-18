@@ -13,7 +13,7 @@ class SentryClient:  # pylint: disable=too-many-public-methods
         self.host = host
         self.auth_token = token
 
-    @retry()
+    #@retry()
     def _do_sentry_api_call(self, method, path, slugs, payload=None):
         url = f"{self.host}/api/0/{path}/"
 
@@ -37,20 +37,24 @@ class SentryClient:  # pylint: disable=too-many-public-methods
         # link is a string of comma separated items
         # with the following structure:
         # <URL>; rel="previous/next"; results="false/true"; cursor="value"
-        item_format = '<{}>; rel="{}"; results="{}"; cursor="{}"'
+        #item_format = '<{}>; rel="{}"; results="{}"; cursor="{}"'
         while True:
             link = response.headers.get("link")
             if not link:
                 break
+
             # 2nd item is the next page
-            next_item = link.split(", ")[1]
-            # copied with love from
-            # https://stackoverflow.com/questions/10663093/
-            # use-python-format-string-in-reverse-for-parsing
-            _, rel, results, cursor = parse.parse(item_format, next_item)
-            if rel != "next" or results != "true":
+            next_item = [i.strip() for i in link.split(", ")[1].split(";")[1:]]
+            key_values = dict(s.replace('"','').split("=") for s in next_item)
+
+            if "cursor" not in key_values:
                 break
-            response = call(f"{url}?&cursor={cursor}", headers=headers, json=payload)
+
+            response = call(
+                f"{url}?&cursor={key_values['cursor']}",
+                headers=headers,
+                json=payload
+            )
             response.raise_for_status()
             # if there are pages, each response is a list to extend
             all_results += response.json()
@@ -105,7 +109,12 @@ class SentryClient:  # pylint: disable=too-many-public-methods
         return keys
 
     def update_project(self, slug, options):
-        params = {}
+        params = {
+            "name": slug,
+            "organization": {
+                "name": self.ORGANIZATION
+            }
+        }
         required_fields = self.required_project_fields()
         for k, v in required_fields.items():
             if v in options:
@@ -124,7 +133,8 @@ class SentryClient:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def required_project_fields():
-        required_fields = {"platform": "platform", "subjectPrefix": "email_prefix"}
+        #required_fields = {"platform": "platform", "subjectPrefix": "email_prefix"}
+        required_fields = {"platform": "platform"}
         return required_fields
 
     @staticmethod
