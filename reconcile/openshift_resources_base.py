@@ -58,13 +58,19 @@ from reconcile.github_users import init_github
 OPENSHIFT_RESOURCE = """
 provider
 ... on NamespaceOpenshiftResourceResource_v1 {
-  path
+  resource_path: path {
+    path
+    content
+  }
   validate_json
   validate_alertmanager_config
   alertmanager_config_key
 }
 ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
-  path
+  resource_path: path {
+    path
+    content
+  }
   type
   variables
   validate_alertmanager_config
@@ -81,7 +87,10 @@ provider
   alertmanager_config_key
 }
 ... on NamespaceOpenshiftResourceRoute_v1 {
-  path
+  resource_path: path {
+    path
+    content
+  }
   vault_tls_secret_path
   vault_tls_secret_version
 }

@@ -1,3 +1,4 @@
+from pprint import pp
 import json
 import logging
 import re
@@ -70,18 +71,23 @@ def get_prometheus_rules(cluster_name, settings):
     for r in gqlapi.query(PROMETHEUS_RULES_PATHS_QUERY)["resources"]:
         rules[r["path"]] = {}
 
-    for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]:
+    ns = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    #print("RAFA END OF FIRST PP")
+    for n in ns:
         namespace = n["name"]
         cluster = n["cluster"]["name"]
+        #print(f"NAMESPACE {namespace} CLUSTER {cluster}")
 
-        if cluster_name and cluster != cluster_name:
-            continue
+        #if cluster_name and cluster != cluster_name:
+            #continue
+        #print(10)
 
         if (
             not n.get("managedResourceTypes")
             or "PrometheusRule" not in n["managedResourceTypes"]
         ):
             continue
+        #print(20)
 
         ob.aggregate_shared_resources(n, "openshiftResources")
         openshift_resources = n.get("openshiftResources")
@@ -91,36 +97,44 @@ def get_prometheus_rules(cluster_name, settings):
                 f"{namespace} in cluster {cluster}"
             )
             continue
+        #print(30)
+        #pp(n)
+
 
         for r in openshift_resources:
-            path = r["path"]
-            if path not in rules:
+            path = r.get("resource_path", {}).get("path", "")
+            #print(f"PATH is '{path}' for provider {r['provider']}")
+
+            if not path or path not in rules:
                 continue
 
             # Or we will get an unexepected and confusing html_url annotation
             if "add_path_to_prom_rules" not in r:
                 r["add_path_to_prom_rules"] = False
 
-            openshift_resource = orb.fetch_openshift_resource(
-                resource=r, parent=n, settings=settings
-            )
+            #openshift_resource = orb.fetch_openshift_resource(
+            #    resource=r, parent=n, settings=settings
+            #)
+
+            content = r["resource_path"]["content"]
 
             if cluster not in rules[path]:
                 rules[path][cluster] = {}
 
-            rule = openshift_resource.body
-            rule_length = len(yaml.dump(rule))  # Same as prometheus-operator does it.
+            #rule = openshift_resource.body
+            rule_length = len(content)
             rules[path][cluster][namespace] = {
-                "spec": rule["spec"],
+                "spec": content,
                 "length": rule_length,
             }
 
             # we keep variables to use them in the rule tests
             variables = json.loads(r.get("variables") or "{}")
             # keep the resource as well
-            variables["resource"] = r
+            #variables["resource"] = r
             rules[path][cluster][namespace]["variables"] = variables
 
+    #print("END OF FETCHING NAMESPACES")
     # We return rules that are actually consumed from a namespace becaused
     # those are the only ones that can be resolved as they can be templates
     return {path: data for path, data in rules.items() if data}
@@ -339,6 +353,13 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
     settings = queries.get_app_interface_settings()
+
+    pp(early_exit_desired_state(cluster_name, settings))
+    import os, psutil
+    process = psutil.Process(os.getpid())
+    #print(process.memory_info().vms / 1024**3)
+    sys.exit(0)
+
 
     rules = get_prometheus_rules(cluster_name, settings)
     invalid_rules = check_prometheus_rules(rules, thread_pool_size, settings)
