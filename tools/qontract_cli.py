@@ -61,6 +61,7 @@ from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils import (
     amtool,
     config,
+    promtool,
     dnsutils,
     gql,
 )
